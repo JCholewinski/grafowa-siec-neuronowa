@@ -331,7 +331,7 @@ def main():
     SEED_MODELS_SORT = "downloads"   # downloads | likes | trending_score
     PER_AUTHOR_MODELS_LIMIT = 50
 
-    MAX_HOPS = 1                     # 0 = tylko seedy, 1 = sąsiedzi
+    MAX_HOPS = 2              # 0 = tylko seedy, 1 = sąsiedzi
     MAX_NEIGHBORS_PER_USER = 200
     INCLUDE_FOLLOWERS_EDGES = False
 

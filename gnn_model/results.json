@@ -1,0 +1,43 @@
+{
+  "config": {
+    "gnn_dir": "hf_gnn_data",
+    "pyg_path": "hf_gnn_data/pyg_data.pt",
+    "out_dir": "gnn_model",
+    "split_json": "svm_model/split.json",
+    "label_mask_npy": "svm_model/label_mask.npy",
+    "model_type": "sage",
+    "hidden": 128,
+    "num_layers": 2,
+    "dropout": 0.3,
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "epochs": 200,
+    "patience": 20,
+    "threshold": 0.5,
+    "test_size": 0.2,
+    "val_size": 0.1,
+    "seed": 42
+  },
+  "train": {
+    "micro_f1": 0.0,
+    "macro_f1": 0.0,
+    "micro_precision": 0.0,
+    "micro_recall": 0.0
+  },
+  "val": {
+    "micro_f1": 0.011235955056179775,
+    "macro_f1": 0.0005238344683080147,
+    "micro_precision": 0.00625,
+    "micro_recall": 0.05555555555555555
+  },
+  "test": {
+    "micro_f1": 0.006024096385542169,
+    "macro_f1": 0.00032562683165092806,
+    "micro_precision": 0.003134796238244514,
+    "micro_recall": 0.07692307692307693
+  },
+  "num_nodes": 6205,
+  "in_dim": 2,
+  "out_dim": 166,
+  "best_val_micro_f1": 0.011235955056179775
+}
