@@ -322,29 +322,59 @@ def export_pyg_data(out_dir: str, nodes: List[str], edges: List[Tuple[str, str]]
 # -----------------------------
 
 def main():
+    # =========================
+    # KONFIGURACJA (EDYTUJ TU)
+    # =========================
+    OUT_DIR = "hf_gnn_data"
 
-    cfg = CrawlConfig()
+    SEED_MODELS_LIMIT = 500
+    SEED_MODELS_SORT = "downloads"   # downloads | likes | trending_score
+    PER_AUTHOR_MODELS_LIMIT = 50
+
+    MAX_HOPS = 1                     # 0 = tylko seedy, 1 = sąsiedzi
+    MAX_NEIGHBORS_PER_USER = 200
+    INCLUDE_FOLLOWERS_EDGES = False
+
+    TOP_K_TAGS = 200
+    MIN_TAG_FREQ = 5
+
+    SLEEP_S = 0.0                    # zwiększ jeśli trafisz na rate limit
+    # =========================
+
+    cfg = CrawlConfig(
+        seed_models_limit=SEED_MODELS_LIMIT,
+        seed_models_sort=SEED_MODELS_SORT,
+        per_author_models_limit=PER_AUTHOR_MODELS_LIMIT,
+        max_hops=MAX_HOPS,
+        max_neighbors_per_user=MAX_NEIGHBORS_PER_USER,
+        include_followers_edges=INCLUDE_FOLLOWERS_EDGES,
+        sleep_s=SLEEP_S,
+    )
 
     token = os.getenv("HF_TOKEN", None)
-    api = HfApi(token=token)  # token opcjonalny
+    api = HfApi(token=token)
 
     print("[1/4] Zbieram seed autorów z top modeli...")
     seed_users = get_seed_authors(api, cfg)
     print(f"  seed autorów: {len(seed_users)}")
 
-    print("[2/4] Buduję graf użytkowników (following)...")
+    print("[2/4] Buduję graf użytkowników...")
     nodes, edges = build_graph(api, seed_users, cfg)
     print(f"  nodes: {len(nodes)} | edges: {len(edges)}")
 
-    print("[3/4] Buduję etykiety (tagi) per użytkownik...")
+    print("[3/4] Buduję etykiety (tagi)...")
     Y, vocab, raw_user_tags = build_label_matrix(
-        api, nodes, cfg, top_k_tags=args.top_k_tags, min_tag_freq=args.min_tag_freq
+        api,
+        nodes,
+        cfg,
+        top_k_tags=TOP_K_TAGS,
+        min_tag_freq=MIN_TAG_FREQ,
     )
     print(f"  label matrix: {Y.shape} | vocab tags: {len(vocab)}")
 
-    print("[4/4] Zapisuję wyniki...")
-    save_outputs(args.out, nodes, edges, Y, vocab, raw_user_tags)
-    export_pyg_data(args.out, nodes, edges, Y)
+    print("[4/4] Zapis danych...")
+    save_outputs(OUT_DIR, nodes, edges, Y, vocab, raw_user_tags)
+    export_pyg_data(OUT_DIR, nodes, edges, Y)
 
 
 if __name__ == "__main__":
