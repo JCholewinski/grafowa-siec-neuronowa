@@ -1,0 +1,5 @@
+numpy
+tqdm
+torch
+requests
+huggingface_hub==1.2.3
