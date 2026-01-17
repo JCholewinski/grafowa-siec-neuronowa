@@ -28,6 +28,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+
 from sklearn.metrics import f1_score, precision_score, recall_score
 
 # PyG
@@ -45,24 +49,25 @@ class CFG:
     out_dir: str = "gnn_model"
 
     # Jeśli chcesz identyczny split jak SVM:
-    split_json: Optional[str] = "svm_model/split.json"  # ustaw None jeśli chcesz losowy split
+    # split_json: Optional[str] = "svm_model/split.json"  # ustaw None jeśli chcesz losowy split
+    split_json: Optional[str] = None
     # Jeśli SVM filtrował rzadkie klasy:
     label_mask_npy: Optional[str] = "svm_model/label_mask.npy"  # ustaw None, jeśli nie było filtracji
 
     # Model: "sage" albo "gat"
-    model_type: str = "sage"
+    model_type: str = "gat"
 
-    hidden: int = 128
+    hidden: int =800
     num_layers: int = 2
-    dropout: float = 0.3
+    dropout: float = 0.2
 
     lr: float = 1e-3
     weight_decay: float = 1e-4
     epochs: int = 200
-    patience: int = 20  # early stopping na val micro-F1
+    patience: int = 30  # early stopping na val micro-F1
 
     # próg do multi-label
-    threshold: float = 0.5
+    threshold: float = 0.3
 
     # split losowy jeśli split_json=None
     test_size: float = 0.2
@@ -70,9 +75,50 @@ class CFG:
     seed: int = 42
 
 
+
+
 CFG = CFG()
 # =========================
 
+
+TAG_VOCAB_JSON = "svm_from_gnn/tag_vocab.json"  # zmień ścieżkę jeśli masz inaczej
+
+
+def get_tag_names(num_labels: int) -> list[str]:
+    """
+    Zwraca listę nazw tagów w kolejności kolumn y.
+    Jeśli jest tag_vocab.json i label_mask.npy – mapujemy jak w SVM.
+    Jak nie ma – generujemy nazwy typu tag_0, tag_1, ...
+    """
+    # domyślne nazwy
+    tag_names = [f"tag_{i}" for i in range(num_labels)]
+
+    if not os.path.exists(TAG_VOCAB_JSON):
+        return tag_names
+
+    try:
+        with open(TAG_VOCAB_JSON, "r", encoding="utf-8") as f:
+            tag_vocab = json.load(f)  # {tag_name: idx}
+        idx_to_tag_full = {idx: name for name, idx in tag_vocab.items()}
+
+        # jeśli używasz label_mask (jak w SVM), musimy zmapować indeksy
+        if CFG.label_mask_npy is not None and os.path.exists(CFG.label_mask_npy):
+            mask = np.load(CFG.label_mask_npy)
+            active_indices = [i for i, m in enumerate(mask) if m]
+            tag_names = [idx_to_tag_full[i] for i in active_indices]
+        else:
+            # bez maski zakładamy, że idą 0..N-1
+            tag_names = [idx_to_tag_full[i] for i in range(num_labels)]
+    except Exception as e:
+        print(f"[WARN] Nie udało się wczytać tag_vocab.json: {e}")
+
+    # na wszelki wypadek przytnij do num_labels
+    if len(tag_names) != num_labels:
+        tag_names = tag_names[:num_labels]
+        if len(tag_names) < num_labels:
+            tag_names += [f"tag_{i}" for i in range(len(tag_names), num_labels)]
+
+    return tag_names
 
 def ensure_dir(path: str):
     os.makedirs(path, exist_ok=True)
@@ -301,6 +347,74 @@ def main():
         "out_dim": int(out_dim),
         "best_val_micro_f1": float(best_val),
     }
+
+    print("\n[4/5] Liczę metryki per-tag na teście...")
+
+    model.eval()
+    with torch.no_grad():
+        logits_test = model(x.to(device), edge_index.to(device))[test_mask]
+        probs_test = torch.sigmoid(logits_test).cpu().numpy()
+        y_test = (y[test_mask] > 0.5).cpu().numpy().astype(np.int8)
+        y_pred = (probs_test >= CFG.threshold).astype(np.int8)
+
+    # wsparcie (ile razy tag występuje na teście)
+    tag_counts = y_test.sum(axis=0)
+    num_labels = y_test.shape[1]
+    tag_names = get_tag_names(num_labels)
+
+    # top K tagów jak w SVM (np. 20)
+    TOP_K_TAGS = min(20, num_labels)
+    top_indices = np.argsort(tag_counts)[-TOP_K_TAGS:][::-1]
+
+    per_tag_metrics = []
+    print(f"\nMetryki per-tag (Top {TOP_K_TAGS} najczęstszych tagów na teście):")
+    print(f"{'Tag':<30} {'Support':<10} {'Precision':<12} {'Recall':<12} {'F1':<12}")
+    print("-" * 80)
+
+    from sklearn.metrics import precision_score, recall_score, f1_score  # dla pewności lokalny import
+
+    for idx in top_indices:
+        support = int(tag_counts[idx])
+        if support == 0:
+            continue
+
+        tag_name = tag_names[idx] if idx < len(tag_names) else f"tag_{idx}"
+
+        prec = precision_score(y_test[:, idx], y_pred[:, idx], zero_division=0)
+        rec = recall_score(y_test[:, idx], y_pred[:, idx], zero_division=0)
+        f1 = f1_score(y_test[:, idx], y_pred[:, idx], zero_division=0)
+
+        print(f"{tag_name:<30} {support:<10} {prec:<12.4f} {rec:<12.4f} {f1:<12.4f}")
+
+        per_tag_metrics.append(
+            {
+                "tag": tag_name,
+                "support": support,
+                "precision": float(prec),
+                "recall": float(rec),
+                "f1": float(f1),
+            }
+        )
+
+    # dorzucamy do results.json, tak jak w SVM
+    results["test"]["per_tag_metrics"] = per_tag_metrics
+
+    # HEATMAPA
+    if per_tag_metrics:
+        df_metrics = pd.DataFrame(per_tag_metrics)
+        df_metrics.set_index("tag", inplace=True)
+        df_metrics = df_metrics[["precision", "recall", "f1"]]
+
+        plt.figure(figsize=(12, 8))
+        sns.heatmap(df_metrics, annot=True, cmap="YlGnBu", fmt=".2f")
+        plt.title("GNN – metryki per-tag (Top 20)")
+        heatmap_path = os.path.join(CFG.out_dir, "per_tag_metrics_heatmap.png")
+        plt.savefig(heatmap_path, dpi=150, bbox_inches="tight")
+        plt.close()
+
+        print(f"[OK] Zapisano heatmapę per-tag: {heatmap_path}")
+    else:
+        print("[WARN] Brak per_tag_metrics (prawdopodobnie 0 wsparcia dla top tagów).")
 
     print("\n=== TRAIN ===", train_metrics)
     print("=== VAL   ===", val_metrics)
