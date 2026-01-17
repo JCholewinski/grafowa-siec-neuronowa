@@ -36,15 +36,29 @@ from huggingface_hub import HfApi
 # Konfiguracja i pomocnicze
 # -----------------------------
 
+
 @dataclass
 class CrawlConfig:
-    seed_models_limit: int = 500         # ile top modeli pobrać, żeby zebrać autorów
-    seed_models_sort: str = "downloads"  # downloads | likes | trending_score | last_modified | created_at
-    per_author_models_limit: int = 50    # ile modeli per autor do zbierania tagów
-    max_hops: int = 2                    # 1 = tylko sąsiedzi seedów, 2 = sąsiedzi sąsiadów itd.
-    max_neighbors_per_user: int = 200    # limit following/followers per user (żeby graf nie eksplodował)
-    include_followers_edges: bool = False # jeżeli True: doda także krawędzie od followersów
-    sleep_s: float = 0.0                # opcjonalny sleep między requestami (rate limiting)
+    # ile top modeli pobrać, żeby zebrać autorów
+    seed_models_limit: int = 500
+
+    # downloads | likes | trending_score | last_modified | created_at
+    seed_models_sort: str = "downloads"
+
+    # ile modeli per autor do zbierania tagów
+    per_author_models_limit: int = 50
+
+    # 1 = tylko sąsiedzi seedów, 2 = sąsiedzi sąsiadów itd.
+    max_hops: int = 2
+
+    # limit following/followers per user (żeby graf nie eksplodował)
+    max_neighbors_per_user: int = 200
+
+    # jeżeli True: doda także krawędzie od followersów
+    include_followers_edges: bool = False
+
+    # opcjonalny sleep między requestami (rate limiting)
+    sleep_s: float = 0.0
     request_timeout_s: int = 30
 
 
@@ -60,6 +74,7 @@ def _ensure_dir(path: str):
 # -----------------------------
 # Pobieranie danych z HF
 # -----------------------------
+
 
 def get_seed_authors(api: HfApi, cfg: CrawlConfig) -> List[str]:
     """
@@ -158,7 +173,10 @@ def get_author_tags_from_models(api: HfApi, author: str, cfg: CrawlConfig) -> Li
 # Budowa grafu i etykiet
 # -----------------------------
 
-def build_graph(api: HfApi, seed_users: List[str], cfg: CrawlConfig) -> Tuple[List[str], List[Tuple[str, str]]]:
+
+def build_graph(
+    api: HfApi, seed_users: List[str], cfg: CrawlConfig
+) -> Tuple[List[str], List[Tuple[str, str]]]:
     """
     BFS po sieci following/followers do max_hops.
     Krawędź: u -> v oznacza "u follows v".
@@ -239,6 +257,7 @@ def build_label_matrix(
 # Zapis / eksport
 # -----------------------------
 
+
 def save_outputs(
     out_dir: str,
     nodes: List[str],
@@ -253,7 +272,9 @@ def save_outputs(
     nodes_path = os.path.join(out_dir, "nodes.jsonl")
     with open(nodes_path, "w", encoding="utf-8") as f:
         for idx, u in enumerate(nodes):
-            f.write(json.dumps({"node_id": idx, "username": u}, ensure_ascii=False) + "\n")
+            f.write(
+                json.dumps({"node_id": idx, "username": u}, ensure_ascii=False) + "\n"
+            )
 
     # edges.csv (src_id, dst_id)
     node2id = {u: i for i, u in enumerate(nodes)}
@@ -277,10 +298,14 @@ def save_outputs(
     with open(raw_tags_path, "w", encoding="utf-8") as f:
         json.dump(raw_user_tags, f, ensure_ascii=False)
 
-    print(f"[OK] Zapisano:\n- {nodes_path}\n- {edges_path}\n- {npz_path}\n- {vocab_path}\n- {raw_tags_path}")
+    print(
+        f"[OK] Zapisano:\n- {nodes_path}\n- {edges_path}\n- {npz_path}\n- {vocab_path}\n- {raw_tags_path}"
+    )
 
 
-def export_pyg_data(out_dir: str, nodes: List[str], edges: List[Tuple[str, str]], Y: np.ndarray):
+def export_pyg_data(
+    out_dir: str, nodes: List[str], edges: List[Tuple[str, str]], Y: np.ndarray
+):
     """
     Opcjonalnie: eksport do formatu wygodnego dla PyTorch Geometric:
     - edge_index: [2, E]
@@ -321,6 +346,7 @@ def export_pyg_data(out_dir: str, nodes: List[str], edges: List[Tuple[str, str]]
 # Main
 # -----------------------------
 
+
 def main():
     # =========================
     # KONFIGURACJA (EDYTUJ TU)
@@ -328,17 +354,17 @@ def main():
     OUT_DIR = "hf_gnn_data"
 
     SEED_MODELS_LIMIT = 500
-    SEED_MODELS_SORT = "downloads"   # downloads | likes | trending_score
+    SEED_MODELS_SORT = "downloads"  # downloads | likes | trending_score
     PER_AUTHOR_MODELS_LIMIT = 50
 
-    MAX_HOPS = 2              # 0 = tylko seedy, 1 = sąsiedzi
+    MAX_HOPS = 1  # 0 = tylko seedy, 1 = sąsiedzi
     MAX_NEIGHBORS_PER_USER = 200
     INCLUDE_FOLLOWERS_EDGES = False
 
     TOP_K_TAGS = 200
     MIN_TAG_FREQ = 5
 
-    SLEEP_S = 0.0                    # zwiększ jeśli trafisz na rate limit
+    SLEEP_S = 0.0  # zwiększ jeśli trafisz na rate limit
     # =========================
 
     cfg = CrawlConfig(
