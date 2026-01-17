@@ -3,41 +3,183 @@
     "gnn_dir": "hf_gnn_data",
     "pyg_path": "hf_gnn_data/pyg_data.pt",
     "out_dir": "gnn_model",
-    "split_json": "svm_model/split.json",
+    "split_json": null,
     "label_mask_npy": "svm_model/label_mask.npy",
-    "model_type": "sage",
-    "hidden": 128,
+    "model_type": "gat",
+    "hidden": 800,
     "num_layers": 2,
-    "dropout": 0.3,
+    "dropout": 0.2,
     "lr": 0.001,
     "weight_decay": 0.0001,
     "epochs": 200,
-    "patience": 20,
-    "threshold": 0.5,
+    "patience": 30,
+    "threshold": 0.3,
     "test_size": 0.2,
     "val_size": 0.1,
     "seed": 42
   },
   "train": {
-    "micro_f1": 0.0,
-    "macro_f1": 0.0,
-    "micro_precision": 0.0,
-    "micro_recall": 0.0
+    "micro_f1": 0.31589249416547466,
+    "macro_f1": 0.0347863523887873,
+    "micro_precision": 0.3436527436527437,
+    "micro_recall": 0.2922819726943438
   },
   "val": {
-    "micro_f1": 0.011235955056179775,
-    "macro_f1": 0.0005238344683080147,
-    "micro_precision": 0.00625,
-    "micro_recall": 0.05555555555555555
+    "micro_f1": 0.36296685954760655,
+    "macro_f1": 0.039426681167760866,
+    "micro_precision": 0.4107142857142857,
+    "micro_recall": 0.32516493873704055
   },
   "test": {
-    "micro_f1": 0.006024096385542169,
-    "macro_f1": 0.00032562683165092806,
-    "micro_precision": 0.003134796238244514,
-    "micro_recall": 0.07692307692307693
+    "micro_f1": 0.2859375,
+    "macro_f1": 0.032599734118327416,
+    "micro_precision": 0.3103448275862069,
+    "micro_recall": 0.2650893288266538,
+    "per_tag_metrics": [
+      {
+        "tag": "region:us",
+        "support": 81,
+        "precision": 0.42857142857142855,
+        "recall": 1.0,
+        "f1": 0.6
+      },
+      {
+        "tag": "endpoints_compatible",
+        "support": 74,
+        "precision": 0.3915343915343915,
+        "recall": 1.0,
+        "f1": 0.5627376425855514
+      },
+      {
+        "tag": "transformers",
+        "support": 71,
+        "precision": 0.37566137566137564,
+        "recall": 1.0,
+        "f1": 0.5461538461538461
+      },
+      {
+        "tag": "safetensors",
+        "support": 70,
+        "precision": 0.37037037037037035,
+        "recall": 1.0,
+        "f1": 0.5405405405405406
+      },
+      {
+        "tag": "text-generation",
+        "support": 54,
+        "precision": 0.32432432432432434,
+        "recall": 0.6666666666666666,
+        "f1": 0.43636363636363634
+      },
+      {
+        "tag": "pytorch",
+        "support": 54,
+        "precision": 0.35185185185185186,
+        "recall": 0.7037037037037037,
+        "f1": 0.4691358024691358
+      },
+      {
+        "tag": "license:apache-2.0",
+        "support": 53,
+        "precision": 0.3025210084033613,
+        "recall": 0.6792452830188679,
+        "f1": 0.4186046511627907
+      },
+      {
+        "tag": "en",
+        "support": 50,
+        "precision": 0.26548672566371684,
+        "recall": 0.6,
+        "f1": 0.36809815950920244
+      },
+      {
+        "tag": "text-generation-inference",
+        "support": 44,
+        "precision": 0.23376623376623376,
+        "recall": 0.8181818181818182,
+        "f1": 0.36363636363636365
+      },
+      {
+        "tag": "deploy:azure",
+        "support": 41,
+        "precision": 0.24324324324324326,
+        "recall": 0.6585365853658537,
+        "f1": 0.35526315789473684
+      },
+      {
+        "tag": "llama",
+        "support": 39,
+        "precision": 0.29591836734693877,
+        "recall": 0.7435897435897436,
+        "f1": 0.4233576642335766
+      },
+      {
+        "tag": "conversational",
+        "support": 36,
+        "precision": 0.18018018018018017,
+        "recall": 0.5555555555555556,
+        "f1": 0.272108843537415
+      },
+      {
+        "tag": "custom_code",
+        "support": 28,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      {
+        "tag": "tensorboard",
+        "support": 27,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      {
+        "tag": "bert",
+        "support": 26,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      {
+        "tag": "license:mit",
+        "support": 25,
+        "precision": 0.09090909090909091,
+        "recall": 0.04,
+        "f1": 0.05555555555555555
+      },
+      {
+        "tag": "text-classification",
+        "support": 23,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      {
+        "tag": "model-index",
+        "support": 21,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      {
+        "tag": "automatic-speech-recognition",
+        "support": 20,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      {
+        "tag": "jax",
+        "support": 20,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      }
+    ]
   },
-  "num_nodes": 6205,
+  "num_nodes": 946,
   "in_dim": 2,
   "out_dim": 166,
-  "best_val_micro_f1": 0.011235955056179775
+  "best_val_micro_f1": 0.36296685954760655
 }

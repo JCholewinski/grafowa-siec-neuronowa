@@ -39,12 +39,12 @@ from huggingface_hub import HfApi
 @dataclass
 class CrawlConfig:
     seed_models_limit: int = 500         # ile top modeli pobrać, żeby zebrać autorów
-    seed_models_sort: str = "downloads"  # downloads | likes | trending_score | last_modified | created_at
-    per_author_models_limit: int = 50    # ile modeli per autor do zbierania tagów
-    max_hops: int = 2                    # 1 = tylko sąsiedzi seedów, 2 = sąsiedzi sąsiadów itd.
-    max_neighbors_per_user: int = 200    # limit following/followers per user (żeby graf nie eksplodował)
+    seed_models_sort: str = "downloads"   # downloads | likes | trending_score | last_modified | created_at
+    per_author_models_limit: int = 50     # ile modeli per autor do zbierania tagów
+    max_hops: int = 2                     # 1 = tylko sąsiedzi seedów, 2 = sąsiedzi sąsiadów itd.
+    max_neighbors_per_user: int = 200     # limit following/followers per user (żeby graf nie eksplodował)
     include_followers_edges: bool = False # jeżeli True: doda także krawędzie od followersów
-    sleep_s: float = 0.0                # opcjonalny sleep między requestami (rate limiting)
+    sleep_s: float = 0.0                  # opcjonalny sleep między requestami (rate limiting)
     request_timeout_s: int = 30
 
 
@@ -327,7 +327,7 @@ def main():
     # =========================
     OUT_DIR = "hf_gnn_data"
 
-    SEED_MODELS_LIMIT = 500
+    SEED_MODELS_LIMIT = 1500
     SEED_MODELS_SORT = "downloads"   # downloads | likes | trending_score
     PER_AUTHOR_MODELS_LIMIT = 50
 
