@@ -31,11 +31,15 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
+import optuna
+from datetime import datetime
+
 
 from sklearn.metrics import f1_score, precision_score, recall_score
 
 # PyG
 from torch_geometric.nn import SAGEConv, GATConv
+from torch_geometric.utils import add_self_loops
 
 
 # =========================
@@ -52,18 +56,20 @@ class CFG:
     # split_json: Optional[str] = "svm_model/split.json"  # ustaw None jeśli chcesz losowy split
     split_json: Optional[str] = None
     # Jeśli SVM filtrował rzadkie klasy:
-    label_mask_npy: Optional[str] = "svm_model/label_mask.npy"  # ustaw None, jeśli nie było filtracji
+    label_mask_npy: Optional[str] = (
+        "svm_model/label_mask.npy"  # ustaw None, jeśli nie było filtracji
+    )
 
     # Model: "sage" albo "gat"
     model_type: str = "gat"
 
-    hidden: int =800
+    hidden: int = 800
     num_layers: int = 2
     dropout: float = 0.2
 
     lr: float = 1e-3
     weight_decay: float = 1e-4
-    epochs: int = 200
+    epochs: int = 800
     patience: int = 30  # early stopping na val micro-F1
 
     # próg do multi-label
@@ -74,14 +80,23 @@ class CFG:
     val_size: float = 0.1
     seed: int = 42
 
-
+    # optuna
+    use_optuna: bool = True
+    optuna_trials: int = 4000
+    out_root: str = "gnn_runs/"
 
 
 CFG = CFG()
-# =========================
 
 
+def run_id() -> str:
+    return datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+
+RUN_ID = run_id()
 TAG_VOCAB_JSON = "svm_from_gnn/tag_vocab.json"  # zmień ścieżkę jeśli masz inaczej
+OPTUNA_DIR = f"./gnn_runs/optuna_{RUN_ID}/"
+# =========================
 
 
 def get_tag_names(num_labels: int) -> list[str]:
@@ -120,6 +135,7 @@ def get_tag_names(num_labels: int) -> list[str]:
 
     return tag_names
 
+
 def ensure_dir(path: str):
     os.makedirs(path, exist_ok=True)
 
@@ -136,7 +152,9 @@ def load_pyg_bundle(path: str):
     return bundle
 
 
-def make_masks_from_split(num_nodes: int, split_path: str) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+def make_masks_from_split(
+    num_nodes: int, split_path: str
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     with open(split_path, "r", encoding="utf-8") as f:
         split = json.load(f)
 
@@ -163,8 +181,8 @@ def make_random_masks(num_nodes: int, test_size: float, val_size: float, seed: i
     n_val = int(round(num_nodes * val_size))
 
     test_idx = idx[:n_test]
-    val_idx = idx[n_test:n_test + n_val]
-    train_idx = idx[n_test + n_val:]
+    val_idx = idx[n_test : n_test + n_val]
+    train_idx = idx[n_test + n_val :]
 
     train_mask = torch.zeros(num_nodes, dtype=torch.bool)
     val_mask = torch.zeros(num_nodes, dtype=torch.bool)
@@ -177,7 +195,15 @@ def make_random_masks(num_nodes: int, test_size: float, val_size: float, seed: i
 
 
 class GNN(nn.Module):
-    def __init__(self, in_dim: int, out_dim: int, hidden: int, num_layers: int, dropout: float, model_type: str):
+    def __init__(
+        self,
+        in_dim: int,
+        out_dim: int,
+        hidden: int,
+        num_layers: int,
+        dropout: float,
+        model_type: str,
+    ):
         super().__init__()
         self.model_type = model_type
         self.dropout = dropout
@@ -195,10 +221,16 @@ class GNN(nn.Module):
         elif model_type == "gat":
             # prosta wersja GAT (jednogłowicowa na końcu)
             heads = 4
-            self.convs.append(GATConv(in_dim, hidden // heads, heads=heads, dropout=dropout))
+            self.convs.append(
+                GATConv(in_dim, hidden // heads, heads=heads, dropout=dropout)
+            )
             for _ in range(num_layers - 2):
-                self.convs.append(GATConv(hidden, hidden // heads, heads=heads, dropout=dropout))
-            self.convs.append(GATConv(hidden, out_dim, heads=1, concat=False, dropout=dropout))
+                self.convs.append(
+                    GATConv(hidden, hidden // heads, heads=heads, dropout=dropout)
+                )
+            self.convs.append(
+                GATConv(hidden, out_dim, heads=1, concat=False, dropout=dropout)
+            )
         else:
             raise ValueError("model_type musi być 'sage' albo 'gat'")
 
@@ -234,14 +266,26 @@ def evaluate(model: nn.Module, x, edge_index, y_true, mask, threshold: float):
     }
 
 
-def main():
+# ==============================
+def infer_hidden_from_state_dict(state: dict) -> int:
+    for k, v in state.items():
+        if "convs.0" in k and k.endswith("weight") and v.dim() == 2:
+            return v.size(0)
+    raise ValueError(
+        f"Nie można wykryć hidden. Dostępne klucze: {list(state.keys())[:10]}"
+    )
+
+
+def run_gnn_from_checkpoint(model_path: str) -> None:
     ensure_dir(CFG.out_dir)
     set_seed(CFG.seed)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # device = "cpu"
+    device = torch.device("cpu")
     print(f"[INFO] device: {device}")
 
-    print("[1/5] Wczytuję pyg_data.pt ...")
+    print("[1/4] Wczytuję pyg_data.pt ...")
     bundle = load_pyg_bundle(CFG.pyg_path)
     x = bundle["x"].float()
     edge_index = bundle["edge_index"].long()
@@ -251,7 +295,6 @@ def main():
     if x.size(0) != num_nodes or y.size(0) != num_nodes:
         raise ValueError("Niezgodne num_nodes vs x/y")
 
-    # jeśli SVM filtrował klasy, trenuj na tych samych
     if CFG.label_mask_npy is not None and os.path.exists(CFG.label_mask_npy):
         mask = np.load(CFG.label_mask_npy)
         mask_t = torch.tensor(mask, dtype=torch.bool)
@@ -262,17 +305,22 @@ def main():
     out_dim = y.size(1)
     print(f"  x: {tuple(x.shape)} | y: {tuple(y.shape)} | edges: {edge_index.size(1)}")
 
-    print("[2/5] Maski train/val/test ...")
+    print("[2/4] Maski train/val/test ...")
     if CFG.split_json is not None and os.path.exists(CFG.split_json):
-        train_mask, val_mask, test_mask = make_masks_from_split(num_nodes, CFG.split_json)
+        train_mask, val_mask, test_mask = make_masks_from_split(
+            num_nodes, CFG.split_json
+        )
         print(f"[INFO] Używam splitu z: {CFG.split_json}")
     else:
-        train_mask, val_mask, test_mask = make_random_masks(num_nodes, CFG.test_size, CFG.val_size, CFG.seed)
+        train_mask, val_mask, test_mask = make_random_masks(
+            num_nodes, CFG.test_size, CFG.val_size, CFG.seed
+        )
         print("[INFO] Używam losowego splitu")
 
-    print(f"  train: {int(train_mask.sum())} | val: {int(val_mask.sum())} | test: {int(test_mask.sum())}")
+    print(
+        f"  train: {int(train_mask.sum())} | val: {int(val_mask.sum())} | test: {int(test_mask.sum())}"
+    )
 
-    # przeniesienie na device
     x = x.to(device)
     edge_index = edge_index.to(device)
     y = y.to(device)
@@ -280,59 +328,27 @@ def main():
     val_mask = val_mask.to(device)
     test_mask = test_mask.to(device)
 
-    print("[3/5] Buduję model ...")
+    print("[3/4] Buduję model i wczytuję wagi ...")
+    state = torch.load(model_path, map_location=device)
+
+    hidden = infer_hidden_from_state_dict(state)
+    CFG.hidden = hidden
+
+    print(f"[INFO] Wykryto hidden z checkpointu: {hidden}")
+
     model = GNN(
         in_dim=in_dim,
         out_dim=out_dim,
-        hidden=CFG.hidden,
+        hidden=hidden,
         num_layers=CFG.num_layers,
         dropout=CFG.dropout,
         model_type=CFG.model_type,
     ).to(device)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=CFG.lr, weight_decay=CFG.weight_decay)
-    # multi-label: BCE z logitsami
-    criterion = nn.BCEWithLogitsLoss()
+    model.load_state_dict(state)
+    model.eval()
 
-    best_val = -1.0
-    best_state = None
-    bad_epochs = 0
-
-    print("[4/5] Trening ...")
-    for epoch in range(1, CFG.epochs + 1):
-        model.train()
-        optimizer.zero_grad()
-
-        logits = model(x, edge_index)
-        loss = criterion(logits[train_mask], y[train_mask])
-
-        loss.backward()
-        optimizer.step()
-
-        # ewaluacja co epokę (możesz robić co 5 dla speed)
-        val_metrics = evaluate(model, x, edge_index, y, val_mask, CFG.threshold)
-        val_micro = val_metrics["micro_f1"]
-
-        if val_micro > best_val + 1e-6:
-            best_val = val_micro
-            best_state = {k: v.detach().cpu() for k, v in model.state_dict().items()}
-            bad_epochs = 0
-        else:
-            bad_epochs += 1
-
-        if epoch % 10 == 0 or epoch == 1:
-            print(f"Epoch {epoch:03d} | loss={loss.item():.4f} | val_microF1={val_micro:.4f}")
-
-        if bad_epochs >= CFG.patience:
-            print(f"[INFO] Early stopping na epoce {epoch} (best val_microF1={best_val:.4f})")
-            break
-
-    if best_state is None:
-        best_state = {k: v.detach().cpu() for k, v in model.state_dict().items()}
-
-    model.load_state_dict(best_state)
-
-    print("[5/5] Test i zapis ...")
+    print("[4/4] Ewaluacja ...")
     train_metrics = evaluate(model, x, edge_index, y, train_mask, CFG.threshold)
     val_metrics = evaluate(model, x, edge_index, y, val_mask, CFG.threshold)
     test_metrics = evaluate(model, x, edge_index, y, test_mask, CFG.threshold)
@@ -345,33 +361,30 @@ def main():
         "num_nodes": int(num_nodes),
         "in_dim": int(in_dim),
         "out_dim": int(out_dim),
-        "best_val_micro_f1": float(best_val),
+        "model_path": model_path,
     }
 
-    print("\n[4/5] Liczę metryki per-tag na teście...")
+    print("\n[INFO] Liczę metryki per-tag na teście...")
 
-    model.eval()
     with torch.no_grad():
-        logits_test = model(x.to(device), edge_index.to(device))[test_mask]
+        logits_test = model(x, edge_index)[test_mask]
         probs_test = torch.sigmoid(logits_test).cpu().numpy()
         y_test = (y[test_mask] > 0.5).cpu().numpy().astype(np.int8)
         y_pred = (probs_test >= CFG.threshold).astype(np.int8)
 
-    # wsparcie (ile razy tag występuje na teście)
     tag_counts = y_test.sum(axis=0)
     num_labels = y_test.shape[1]
     tag_names = get_tag_names(num_labels)
 
-    # top K tagów jak w SVM (np. 20)
     TOP_K_TAGS = min(20, num_labels)
     top_indices = np.argsort(tag_counts)[-TOP_K_TAGS:][::-1]
 
+    from sklearn.metrics import precision_score, recall_score, f1_score
+
     per_tag_metrics = []
-    print(f"\nMetryki per-tag (Top {TOP_K_TAGS} najczęstszych tagów na teście):")
+    print(f"\nMetryki per-tag (Top {TOP_K_TAGS}):")
     print(f"{'Tag':<30} {'Support':<10} {'Precision':<12} {'Recall':<12} {'F1':<12}")
     print("-" * 80)
-
-    from sklearn.metrics import precision_score, recall_score, f1_score  # dla pewności lokalny import
 
     for idx in top_indices:
         support = int(tag_counts[idx])
@@ -379,7 +392,6 @@ def main():
             continue
 
         tag_name = tag_names[idx] if idx < len(tag_names) else f"tag_{idx}"
-
         prec = precision_score(y_test[:, idx], y_pred[:, idx], zero_division=0)
         rec = recall_score(y_test[:, idx], y_pred[:, idx], zero_division=0)
         f1 = f1_score(y_test[:, idx], y_pred[:, idx], zero_division=0)
@@ -396,35 +408,182 @@ def main():
             }
         )
 
-    # dorzucamy do results.json, tak jak w SVM
     results["test"]["per_tag_metrics"] = per_tag_metrics
 
-    # HEATMAPA
     if per_tag_metrics:
-        df_metrics = pd.DataFrame(per_tag_metrics)
-        df_metrics.set_index("tag", inplace=True)
-        df_metrics = df_metrics[["precision", "recall", "f1"]]
-
+        df_metrics = pd.DataFrame(per_tag_metrics).set_index("tag")[
+            ["precision", "recall", "f1"]
+        ]
         plt.figure(figsize=(12, 8))
         sns.heatmap(df_metrics, annot=True, cmap="YlGnBu", fmt=".2f")
         plt.title("GNN – metryki per-tag (Top 20)")
         heatmap_path = os.path.join(CFG.out_dir, "per_tag_metrics_heatmap.png")
         plt.savefig(heatmap_path, dpi=150, bbox_inches="tight")
+        if CFG.use_optuna:
+            plt.savefig(OPTUNA_DIR, dpi=150, bbox_inches="tight")
         plt.close()
-
         print(f"[OK] Zapisano heatmapę per-tag: {heatmap_path}")
-    else:
-        print("[WARN] Brak per_tag_metrics (prawdopodobnie 0 wsparcia dla top tagów).")
+
+    with open(os.path.join(CFG.out_dir, "results.json"), "w", encoding="utf-8") as f:
+        json.dump(results, f, ensure_ascii=False, indent=2)
 
     print("\n=== TRAIN ===", train_metrics)
     print("=== VAL   ===", val_metrics)
     print("=== TEST  ===", test_metrics)
+    print(f"\n[OK] Gotowe. Model wczytany z: {model_path}")
 
-    torch.save(model.state_dict(), os.path.join(CFG.out_dir, "best_model.pt"))
-    with open(os.path.join(CFG.out_dir, "results.json"), "w", encoding="utf-8") as f:
-        json.dump(results, f, ensure_ascii=False, indent=2)
 
-    print(f"\n[OK] Zapisano: {CFG.out_dir}/best_model.pt oraz results.json")
+def calculate_gnn(
+    cfg: CFG, trial: optuna.Trial | None = None
+) -> tuple[float, dict, dict]:
+    set_seed(cfg.seed)
+    device = "cpu"
+
+    bundle = load_pyg_bundle(cfg.pyg_path)
+
+    x = bundle["x"].float()
+    edge_index = bundle["edge_index"].long()
+    y = bundle["y"].float()
+    num_nodes = x.size(0)
+
+    if cfg.label_mask_npy and os.path.exists(cfg.label_mask_npy):
+        mask = torch.tensor(np.load(cfg.label_mask_npy), dtype=torch.bool)
+        y = y[:, mask]
+
+    if cfg.split_json and os.path.exists(cfg.split_json):
+        train_mask, val_mask, test_mask = make_masks_from_split(
+            num_nodes, cfg.split_json
+        )
+    else:
+        train_mask, val_mask, test_mask = make_random_masks(
+            num_nodes, cfg.test_size, cfg.val_size, cfg.seed
+        )
+
+    x, edge_index, y = x.to(device), edge_index.to(device), y.to(device)
+    train_mask, val_mask, test_mask = (
+        train_mask.to(device),
+        val_mask.to(device),
+        test_mask.to(device),
+    )
+
+    edge_index, _ = add_self_loops(edge_index, num_nodes=num_nodes)
+
+    model = GNN(
+        x.size(1), y.size(1), cfg.hidden, cfg.num_layers, cfg.dropout, cfg.model_type
+    ).to(device)
+
+    pos_weight = (y.size(0) - y.sum(dim=0)) / (y.sum(dim=0) + 1e-6)
+    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+
+    optimizer = torch.optim.Adam(
+        model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay
+    )
+
+    best_val = -1.0
+    best_state = None
+    bad_epochs = 0
+
+    for epoch in range(1, cfg.epochs + 1):
+        model.train()
+        optimizer.zero_grad()
+
+        logits = model(x, edge_index)
+        loss = criterion(logits[train_mask], y[train_mask])
+        loss.backward()
+        optimizer.step()
+
+        val_metrics = evaluate(model, x, edge_index, y, val_mask, cfg.threshold)
+        val_micro_f1 = val_metrics["micro_f1"]
+
+        # if trial:
+        #     trial.report(val_micro_f1, epoch)
+        #     if trial.should_prune():
+        #         raise optuna.TrialPruned()
+
+        if val_micro_f1 > best_val:
+            best_val = val_micro_f1
+            best_state = {k: v.detach().cpu() for k, v in model.state_dict().items()}
+            bad_epochs = 0
+        else:
+            bad_epochs += 1
+
+        if bad_epochs >= cfg.patience:
+            break
+
+    model.load_state_dict(best_state)
+
+    train_f1 = evaluate(model, x, edge_index, y, train_mask, cfg.threshold)
+    val_f1 = evaluate(model, x, edge_index, y, val_mask, cfg.threshold)
+    test_f1 = evaluate(model, x, edge_index, y, test_mask, cfg.threshold)
+
+    metrics = {"train_f1": train_f1, "val_f1": val_f1, "test_f1": test_f1}
+
+    return best_val, best_state, metrics
+
+
+# =========================
+# OPTUNA
+# =========================
+
+
+def optuna_optimize(cfg: CFG) -> None:
+    run_dir = os.path.join(cfg.out_root, f"optuna_{RUN_ID}")
+    ensure_dir(run_dir)
+
+    def objective(trial: optuna.Trial) -> float:
+        heads = 4
+
+        head_dim = trial.suggest_int("head_dim", 8, 128, step=8)
+        hidden = head_dim * heads
+
+        cfg.hidden = hidden
+        cfg.dropout = trial.suggest_float("dropout", 0.1, 0.6)
+        cfg.lr = trial.suggest_float("lr", 1e-4, 5e-3, log=True)
+        cfg.weight_decay = trial.suggest_float("weight_decay", 1e-6, 1e-3, log=True)
+        cfg.threshold = trial.suggest_float("threshold", 0.1, 0.5)
+
+        trial.set_user_attr("hidden", hidden)
+        trial.set_user_attr("heads", heads)
+        trial.set_user_attr("head_dim", head_dim)
+
+        best_val, _, _ = calculate_gnn(cfg, trial)
+
+        return best_val
+
+    study = optuna.create_study(direction="maximize")
+    study.optimize(objective, n_trials=cfg.optuna_trials)
+
+    with open(os.path.join(run_dir, "optuna_study.json"), "w") as f:
+        json.dump(study.best_trial.params, f, indent=2)
+
+    print("\n[OPTUNA] BEST PARAMS:", study.best_trial.params)
+
+    for k, v in study.best_trial.params.items():
+        setattr(cfg, k, v)
+
+    best_val, best_state, metrics = calculate_gnn(cfg)
+
+    torch.save(best_state, os.path.join(run_dir, "best_model.pt"))
+    with open(os.path.join(run_dir, "results.json"), "w") as f:
+        json.dump(
+            {"best_params": study.best_trial.params, "metrics": metrics}, f, indent=2
+        )
+
+    print("[OK] Optuna zakończona. Wyniki zapisane w:", run_dir)
+
+
+# =========================
+# MAIN
+# =========================
+
+
+def main() -> None:
+    if CFG.use_optuna:
+        optuna_optimize(CFG)
+    else:
+        OPTUNA_DIR = "./gnn_runs/optuna_2026-01-17_23-13-33"
+
+    run_gnn_from_checkpoint(f"{OPTUNA_DIR}/best_model.pt")
 
 
 if __name__ == "__main__":

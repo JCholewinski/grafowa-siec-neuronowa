@@ -1,2 +1,4 @@
 .python-version
 .pre-commit-config.yaml
+gnn_runs/*
+logs.txt

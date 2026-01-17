@@ -6,35 +6,38 @@
     "split_json": null,
     "label_mask_npy": "svm_model/label_mask.npy",
     "model_type": "gat",
-    "hidden": 800,
+    "hidden": 416,
     "num_layers": 2,
     "dropout": 0.2,
     "lr": 0.001,
     "weight_decay": 0.0001,
-    "epochs": 200,
+    "epochs": 400,
     "patience": 30,
     "threshold": 0.3,
     "test_size": 0.2,
     "val_size": 0.1,
-    "seed": 42
+    "seed": 42,
+    "use_optuna": false,
+    "optuna_trials": 400,
+    "out_root": "gnn_runs/"
   },
   "train": {
-    "micro_f1": 0.31589249416547466,
-    "macro_f1": 0.0347863523887873,
-    "micro_precision": 0.3436527436527437,
-    "micro_recall": 0.2922819726943438
+    "micro_f1": 0.14764034611043766,
+    "macro_f1": 0.13070254271404727,
+    "micro_precision": 0.07980658426915516,
+    "micro_recall": 0.984118138757314
   },
   "val": {
-    "micro_f1": 0.36296685954760655,
-    "macro_f1": 0.039426681167760866,
-    "micro_precision": 0.4107142857142857,
-    "micro_recall": 0.32516493873704055
+    "micro_f1": 0.15069686411149827,
+    "macro_f1": 0.12915677333084521,
+    "micro_precision": 0.0816358631537554,
+    "micro_recall": 0.9783223374175306
   },
   "test": {
-    "micro_f1": 0.2859375,
-    "macro_f1": 0.032599734118327416,
-    "micro_precision": 0.3103448275862069,
-    "micro_recall": 0.2650893288266538,
+    "micro_f1": 0.13871473354231975,
+    "macro_f1": 0.12537236574727756,
+    "micro_precision": 0.07488173531787239,
+    "micro_recall": 0.9401255432158377,
     "per_tag_metrics": [
       {
         "tag": "region:us",
@@ -60,126 +63,126 @@
       {
         "tag": "safetensors",
         "support": 70,
-        "precision": 0.37037037037037035,
+        "precision": 0.37433155080213903,
         "recall": 1.0,
-        "f1": 0.5405405405405406
+        "f1": 0.5447470817120622
       },
       {
         "tag": "text-generation",
         "support": 54,
-        "precision": 0.32432432432432434,
-        "recall": 0.6666666666666666,
-        "f1": 0.43636363636363634
+        "precision": 0.2857142857142857,
+        "recall": 1.0,
+        "f1": 0.4444444444444444
       },
       {
         "tag": "pytorch",
         "support": 54,
-        "precision": 0.35185185185185186,
-        "recall": 0.7037037037037037,
-        "f1": 0.4691358024691358
+        "precision": 0.31333333333333335,
+        "recall": 0.8703703703703703,
+        "f1": 0.46078431372549017
       },
       {
         "tag": "license:apache-2.0",
         "support": 53,
-        "precision": 0.3025210084033613,
-        "recall": 0.6792452830188679,
-        "f1": 0.4186046511627907
+        "precision": 0.28342245989304815,
+        "recall": 1.0,
+        "f1": 0.44166666666666665
       },
       {
         "tag": "en",
         "support": 50,
-        "precision": 0.26548672566371684,
-        "recall": 0.6,
-        "f1": 0.36809815950920244
+        "precision": 0.26455026455026454,
+        "recall": 1.0,
+        "f1": 0.41841004184100417
       },
       {
         "tag": "text-generation-inference",
         "support": 44,
-        "precision": 0.23376623376623376,
-        "recall": 0.8181818181818182,
-        "f1": 0.36363636363636365
+        "precision": 0.2328042328042328,
+        "recall": 1.0,
+        "f1": 0.3776824034334764
       },
       {
         "tag": "deploy:azure",
         "support": 41,
-        "precision": 0.24324324324324326,
-        "recall": 0.6585365853658537,
-        "f1": 0.35526315789473684
+        "precision": 0.21693121693121692,
+        "recall": 1.0,
+        "f1": 0.3565217391304348
       },
       {
         "tag": "llama",
         "support": 39,
-        "precision": 0.29591836734693877,
-        "recall": 0.7435897435897436,
-        "f1": 0.4233576642335766
+        "precision": 0.23648648648648649,
+        "recall": 0.8974358974358975,
+        "f1": 0.37433155080213903
       },
       {
         "tag": "conversational",
         "support": 36,
-        "precision": 0.18018018018018017,
-        "recall": 0.5555555555555556,
-        "f1": 0.272108843537415
+        "precision": 0.19148936170212766,
+        "recall": 1.0,
+        "f1": 0.32142857142857145
       },
       {
         "tag": "custom_code",
         "support": 28,
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0
+        "precision": 0.18120805369127516,
+        "recall": 0.9642857142857143,
+        "f1": 0.3050847457627119
       },
       {
         "tag": "tensorboard",
         "support": 27,
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0
+        "precision": 0.16778523489932887,
+        "recall": 0.9259259259259259,
+        "f1": 0.2840909090909091
       },
       {
         "tag": "bert",
         "support": 26,
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0
+        "precision": 0.1456953642384106,
+        "recall": 0.8461538461538461,
+        "f1": 0.24858757062146894
       },
       {
         "tag": "license:mit",
         "support": 25,
-        "precision": 0.09090909090909091,
-        "recall": 0.04,
-        "f1": 0.05555555555555555
+        "precision": 0.13227513227513227,
+        "recall": 1.0,
+        "f1": 0.2336448598130841
       },
       {
         "tag": "text-classification",
         "support": 23,
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0
+        "precision": 0.1476510067114094,
+        "recall": 0.9565217391304348,
+        "f1": 0.2558139534883721
       },
       {
         "tag": "model-index",
         "support": 21,
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0
+        "precision": 0.11229946524064172,
+        "recall": 1.0,
+        "f1": 0.20192307692307693
       },
       {
-        "tag": "automatic-speech-recognition",
+        "tag": "fr",
         "support": 20,
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0
+        "precision": 0.12258064516129032,
+        "recall": 0.95,
+        "f1": 0.21714285714285714
       },
       {
         "tag": "jax",
         "support": 20,
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0
+        "precision": 0.12337662337662338,
+        "recall": 0.95,
+        "f1": 0.21839080459770116
       }
     ]
   },
   "num_nodes": 946,
   "in_dim": 2,
   "out_dim": 166,
-  "best_val_micro_f1": 0.36296685954760655
+  "model_path": "./gnn_runs/optuna_2026-01-17_23-13-33/best_model.pt"
 }
