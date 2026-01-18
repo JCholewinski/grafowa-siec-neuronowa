@@ -5,184 +5,184 @@
     "out_dir": "gnn_model",
     "split_json": null,
     "label_mask_npy": "svm_model/label_mask.npy",
-    "model_type": "gat",
-    "hidden": 416,
+    "model_type": "sage",
+    "hidden": 256,
     "num_layers": 2,
-    "dropout": 0.2,
-    "lr": 0.001,
-    "weight_decay": 0.0001,
-    "epochs": 400,
+    "dropout": 0.28557185904342947,
+    "lr": 0.004998578343014432,
+    "weight_decay": 0.00010434075644093138,
+    "epochs": 600,
     "patience": 30,
-    "threshold": 0.3,
+    "threshold": 0.4920436087517883,
     "test_size": 0.2,
     "val_size": 0.1,
     "seed": 42,
     "use_optuna": false,
-    "optuna_trials": 400,
+    "optuna_trials": 1000,
     "out_root": "gnn_runs/"
   },
   "train": {
-    "micro_f1": 0.14764034611043766,
-    "macro_f1": 0.13070254271404727,
-    "micro_precision": 0.07980658426915516,
-    "micro_recall": 0.984118138757314
+    "micro_f1": 0.15830101837422536,
+    "macro_f1": 0.12259403385372901,
+    "micro_precision": 0.09098483586068988,
+    "micro_recall": 0.6085260518250208
   },
   "val": {
-    "micro_f1": 0.15069686411149827,
-    "macro_f1": 0.12915677333084521,
-    "micro_precision": 0.0816358631537554,
-    "micro_recall": 0.9783223374175306
+    "micro_f1": 0.17286852069460765,
+    "macro_f1": 0.13003349926149044,
+    "micro_precision": 0.10033343437405275,
+    "micro_recall": 0.6239396795475967
   },
   "test": {
-    "micro_f1": 0.13871473354231975,
-    "macro_f1": 0.12537236574727756,
-    "micro_precision": 0.07488173531787239,
-    "micro_recall": 0.9401255432158377,
+    "micro_f1": 0.15559236762991593,
+    "macro_f1": 0.12518849752562813,
+    "micro_precision": 0.08912004498172617,
+    "micro_recall": 0.6122646064703042,
     "per_tag_metrics": [
       {
         "tag": "region:us",
         "support": 81,
-        "precision": 0.42857142857142855,
-        "recall": 1.0,
-        "f1": 0.6
+        "precision": 0.5,
+        "recall": 0.5679012345679012,
+        "f1": 0.5317919075144508
       },
       {
         "tag": "endpoints_compatible",
         "support": 74,
-        "precision": 0.3915343915343915,
+        "precision": 0.40437158469945356,
         "recall": 1.0,
-        "f1": 0.5627376425855514
+        "f1": 0.5758754863813229
       },
       {
         "tag": "transformers",
         "support": 71,
-        "precision": 0.37566137566137564,
-        "recall": 1.0,
-        "f1": 0.5461538461538461
+        "precision": 0.45263157894736844,
+        "recall": 0.6056338028169014,
+        "f1": 0.5180722891566265
       },
       {
         "tag": "safetensors",
         "support": 70,
-        "precision": 0.37433155080213903,
-        "recall": 1.0,
-        "f1": 0.5447470817120622
+        "precision": 0.4175824175824176,
+        "recall": 0.5428571428571428,
+        "f1": 0.4720496894409938
       },
       {
         "tag": "text-generation",
         "support": 54,
-        "precision": 0.2857142857142857,
-        "recall": 1.0,
-        "f1": 0.4444444444444444
+        "precision": 0.28415300546448086,
+        "recall": 0.9629629629629629,
+        "f1": 0.4388185654008439
       },
       {
         "tag": "pytorch",
         "support": 54,
-        "precision": 0.31333333333333335,
-        "recall": 0.8703703703703703,
-        "f1": 0.46078431372549017
+        "precision": 0.3870967741935484,
+        "recall": 0.6666666666666666,
+        "f1": 0.4897959183673469
       },
       {
         "tag": "license:apache-2.0",
         "support": 53,
-        "precision": 0.28342245989304815,
-        "recall": 1.0,
-        "f1": 0.44166666666666665
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
       },
       {
         "tag": "en",
         "support": 50,
-        "precision": 0.26455026455026454,
-        "recall": 1.0,
-        "f1": 0.41841004184100417
+        "precision": 0.5,
+        "recall": 0.04,
+        "f1": 0.07407407407407407
       },
       {
         "tag": "text-generation-inference",
         "support": 44,
-        "precision": 0.2328042328042328,
-        "recall": 1.0,
-        "f1": 0.3776824034334764
+        "precision": 0.23076923076923078,
+        "recall": 0.4772727272727273,
+        "f1": 0.3111111111111111
       },
       {
         "tag": "deploy:azure",
         "support": 41,
-        "precision": 0.21693121693121692,
-        "recall": 1.0,
-        "f1": 0.3565217391304348
+        "precision": 0.26373626373626374,
+        "recall": 0.5853658536585366,
+        "f1": 0.36363636363636365
       },
       {
         "tag": "llama",
         "support": 39,
-        "precision": 0.23648648648648649,
-        "recall": 0.8974358974358975,
-        "f1": 0.37433155080213903
+        "precision": 0.29896907216494845,
+        "recall": 0.7435897435897436,
+        "f1": 0.4264705882352941
       },
       {
         "tag": "conversational",
         "support": 36,
-        "precision": 0.19148936170212766,
-        "recall": 1.0,
-        "f1": 0.32142857142857145
+        "precision": 0.18823529411764706,
+        "recall": 0.8888888888888888,
+        "f1": 0.3106796116504854
       },
       {
         "tag": "custom_code",
         "support": 28,
-        "precision": 0.18120805369127516,
-        "recall": 0.9642857142857143,
-        "f1": 0.3050847457627119
+        "precision": 0.21978021978021978,
+        "recall": 0.7142857142857143,
+        "f1": 0.33613445378151263
       },
       {
         "tag": "tensorboard",
         "support": 27,
-        "precision": 0.16778523489932887,
-        "recall": 0.9259259259259259,
-        "f1": 0.2840909090909091
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
       },
       {
         "tag": "bert",
         "support": 26,
-        "precision": 0.1456953642384106,
-        "recall": 0.8461538461538461,
-        "f1": 0.24858757062146894
+        "precision": 0.17,
+        "recall": 0.6538461538461539,
+        "f1": 0.2698412698412698
       },
       {
         "tag": "license:mit",
         "support": 25,
-        "precision": 0.13227513227513227,
-        "recall": 1.0,
-        "f1": 0.2336448598130841
+        "precision": 0.11224489795918367,
+        "recall": 0.44,
+        "f1": 0.17886178861788618
       },
       {
         "tag": "text-classification",
         "support": 23,
-        "precision": 0.1476510067114094,
-        "recall": 0.9565217391304348,
-        "f1": 0.2558139534883721
+        "precision": 0.1595744680851064,
+        "recall": 0.6521739130434783,
+        "f1": 0.2564102564102564
       },
       {
         "tag": "model-index",
         "support": 21,
-        "precision": 0.11229946524064172,
-        "recall": 1.0,
-        "f1": 0.20192307692307693
+        "precision": 0.09375,
+        "recall": 0.42857142857142855,
+        "f1": 0.15384615384615385
       },
       {
         "tag": "fr",
         "support": 20,
-        "precision": 0.12258064516129032,
-        "recall": 0.95,
-        "f1": 0.21714285714285714
+        "precision": 0.13541666666666666,
+        "recall": 0.65,
+        "f1": 0.22413793103448276
       },
       {
         "tag": "jax",
         "support": 20,
-        "precision": 0.12337662337662338,
-        "recall": 0.95,
-        "f1": 0.21839080459770116
+        "precision": 0.14736842105263157,
+        "recall": 0.7,
+        "f1": 0.24347826086956523
       }
     ]
   },
   "num_nodes": 946,
   "in_dim": 2,
   "out_dim": 166,
-  "model_path": "./gnn_runs/optuna_2026-01-17_23-13-33/best_model.pt"
+  "model_path": "gnn_runs/optuna_2026-01-18_12-51-32/best_model.pt"
 }

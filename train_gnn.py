@@ -41,61 +41,18 @@ from sklearn.metrics import f1_score, precision_score, recall_score
 from torch_geometric.nn import SAGEConv, GATConv
 from torch_geometric.utils import add_self_loops
 
-
-# =========================
-# KONFIGURACJA
-# =========================
-@dataclass
-class CFG:
-    gnn_dir: str = "hf_gnn_data"
-    pyg_path: str = "hf_gnn_data/pyg_data.pt"
-
-    out_dir: str = "gnn_model"
-
-    # Jeśli chcesz identyczny split jak SVM:
-    # split_json: Optional[str] = "svm_model/split.json"  # ustaw None jeśli chcesz losowy split
-    split_json: Optional[str] = None
-    # Jeśli SVM filtrował rzadkie klasy:
-    label_mask_npy: Optional[str] = (
-        "svm_model/label_mask.npy"  # ustaw None, jeśli nie było filtracji
-    )
-
-    # Model: "sage" albo "gat"
-    model_type: str = "gat"
-
-    hidden: int = 800
-    num_layers: int = 2
-    dropout: float = 0.2
-
-    lr: float = 1e-3
-    weight_decay: float = 1e-4
-    epochs: int = 800
-    patience: int = 30  # early stopping na val micro-F1
-
-    # próg do multi-label
-    threshold: float = 0.3
-
-    # split losowy jeśli split_json=None
-    test_size: float = 0.2
-    val_size: float = 0.1
-    seed: int = 42
-
-    # optuna
-    use_optuna: bool = True
-    optuna_trials: int = 4000
-    out_root: str = "gnn_runs/"
+from gnn_configuration import (
+    CFG,
+    TAG_VOCAB_JSON,
+    RUN_ID,
+    OPTUNA_DIR,
+    CHECKPOINT_LOAD_DIR,
+)
 
 
 CFG = CFG()
 
 
-def run_id() -> str:
-    return datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-
-
-RUN_ID = run_id()
-TAG_VOCAB_JSON = "svm_from_gnn/tag_vocab.json"  # zmień ścieżkę jeśli masz inaczej
-OPTUNA_DIR = f"./gnn_runs/optuna_{RUN_ID}/"
 # =========================
 
 
@@ -414,15 +371,22 @@ def run_gnn_from_checkpoint(model_path: str) -> None:
         df_metrics = pd.DataFrame(per_tag_metrics).set_index("tag")[
             ["precision", "recall", "f1"]
         ]
+        f_sum = df_metrics["f1"].sum()
         plt.figure(figsize=(12, 8))
         sns.heatmap(df_metrics, annot=True, cmap="YlGnBu", fmt=".2f")
-        plt.title("GNN – metryki per-tag (Top 20)")
+        plt.title(
+            f"GNN - metryki per-tag (Top 20), model: {CFG.model_type}, f_sum: {f_sum:.3f}"
+        )
         heatmap_path = os.path.join(CFG.out_dir, "per_tag_metrics_heatmap.png")
         plt.savefig(heatmap_path, dpi=150, bbox_inches="tight")
         if CFG.use_optuna:
-            plt.savefig(OPTUNA_DIR, dpi=150, bbox_inches="tight")
+            plt.savefig(
+                f"{CFG.out_root}/{RUN_ID}/per_tag_metrics_heatmap.png",
+                dpi=150,
+                bbox_inches="tight",
+            )
         plt.close()
-        print(f"[OK] Zapisano heatmapę per-tag: {heatmap_path}")
+        print(f"[OK] Zapisano heatmapę per-tag: {heatmap_path}, f_sum: {f_sum}")
 
     with open(os.path.join(CFG.out_dir, "results.json"), "w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
@@ -577,14 +541,14 @@ def optuna_optimize(cfg: CFG) -> None:
 # =========================
 
 
-def main() -> None:
+def main(optuna_dir) -> None:
     if CFG.use_optuna:
         optuna_optimize(CFG)
     else:
-        OPTUNA_DIR = "./gnn_runs/optuna_2026-01-17_23-13-33"
+        optuna_dir = CHECKPOINT_LOAD_DIR
 
-    run_gnn_from_checkpoint(f"{OPTUNA_DIR}/best_model.pt")
+    run_gnn_from_checkpoint(f"{optuna_dir}/best_model.pt")
 
 
 if __name__ == "__main__":
-    main()
+    main(OPTUNA_DIR)

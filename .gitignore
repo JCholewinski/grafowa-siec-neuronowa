@@ -2,3 +2,4 @@
 .pre-commit-config.yaml
 gnn_runs/*
 logs.txt
+__pycache__
